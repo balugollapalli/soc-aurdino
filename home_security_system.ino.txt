@@ -1,0 +1,110 @@
+#include <Servo.h>
+
+// Pin definitions
+#define SERVO_PIN 9
+#define MOTION_SENSOR_PIN 7
+#define TRIG_PIN 13
+#define ECHO_PIN 12
+#define LIGHT_LED A0
+#define RED_LED A1
+#define GREEN_LED A2
+#define SMOKE_SENSOR A5
+
+// Threshold values
+#define SMOKE_THRESHOLD 400
+#define DISTANCE_THRESHOLD 30
+
+// Global variables
+int gasValue;
+float distance;
+int duration;
+int currentMotionState;
+int lastMotionState;
+Servo servo;
+
+void setup() {
+  // Initialize pins
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(MOTION_SENSOR_PIN, INPUT);
+  pinMode(LIGHT_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(SMOKE_SENSOR, INPUT);
+  
+  // Initialize outputs
+  digitalWrite(LIGHT_LED, LOW);
+  
+  // Initialize servo
+  servo.attach(SERVO_PIN);
+  
+  // Initialize serial communication
+  Serial.begin(9600);
+}
+
+void loop() {
+  checkMotion();
+  measureDistance();
+  checkGasLevel();
+}
+
+void measureDistance() {
+  // Trigger ultrasonic sensor
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  
+  // Calculate distance
+  duration = pulseIn(ECHO_PIN, HIGH);
+  distance = duration * 0.034 / 2;
+  
+  // Output distance info
+  Serial.println("");
+  Serial.print("Distance = ");
+  Serial.print(distance);
+  Serial.println(" CM");
+  
+  // Control light based on distance
+  if (distance <= DISTANCE_THRESHOLD) {
+    Serial.println("Someone entered the room - lights should be on");
+    digitalWrite(LIGHT_LED, HIGH);
+  } else {
+    Serial.println("No one in the room - lights should be off");
+    digitalWrite(LIGHT_LED, LOW);
+  }
+  
+  delay(700);
+}
+
+void checkMotion() {
+  // Update motion states
+  lastMotionState = currentMotionState;
+  currentMotionState = digitalRead(MOTION_SENSOR_PIN);
+  
+  // Control servo based on motion
+  if (currentMotionState == LOW && lastMotionState == HIGH) {
+    Serial.println("Motion stopped!");
+    servo.write(180);
+  } else if (currentMotionState == HIGH && lastMotionState == LOW) {
+    Serial.println("Motion detected!");
+    servo.write(0);
+  }
+}
+
+void checkGasLevel() {
+  // Read gas sensor
+  gasValue = analogRead(SMOKE_SENSOR);
+  Serial.print("Gas level: ");
+  Serial.println(gasValue);
+  
+  // Control LEDs based on gas level
+  if (gasValue > SMOKE_THRESHOLD) {
+    digitalWrite(RED_LED, HIGH);
+    digitalWrite(GREEN_LED, LOW);
+  } else {
+    digitalWrite(RED_LED, LOW);
+    digitalWrite(GREEN_LED, HIGH);
+  }
+}
